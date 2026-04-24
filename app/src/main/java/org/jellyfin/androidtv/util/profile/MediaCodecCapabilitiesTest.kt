@@ -160,15 +160,18 @@ class MediaCodecCapabilitiesTest(
 	fun supportsHevcDolbyVision(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
 		hasCodecForMime(MediaFormat.MIMETYPE_VIDEO_DOLBY_VISION)
 
-	// Checks for Dolby Vision Profile 7 (Enhancement Layer) and multi-instance HEVC support
+	// Checks for Dolby Vision Profile 7 (Enhancement Layer) support.
+	// A decoder registered under MIMETYPE_VIDEO_DOLBY_VISION with Profile 7 is a dedicated DV
+	// hardware decoder that merges the base and enhancement layers internally. The multi-instance
+	// HEVC check is only relevant for software/HEVC-based DV decoders that rely on ExoPlayer's
+	// split-stream approach, but those would never pass the MIMETYPE_VIDEO_DOLBY_VISION query below.
 	fun supportsHevcDolbyVisionEL(): Boolean =
 		Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
 			hasDecoder(
 				MediaFormat.MIMETYPE_VIDEO_DOLBY_VISION,
 				DolbyVisionProfiles.Profile7,
 				CodecProfileLevel.DolbyVisionLevelHd24
-			) &&
-			supportsMultiInstance(MediaFormat.MIMETYPE_VIDEO_HEVC)
+			)
 
 	fun supportsHevcHDR10(): Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
 		hasDecoder(
@@ -257,26 +260,6 @@ class MediaCodecCapabilitiesTest(
 			if (info.supportedTypes.any { it.equals(mime, ignoreCase = true) }) {
 				Timber.i("found codec %s for mime %s", info.name, mime)
 				return true
-			}
-		}
-
-		return false
-	}
-
-	private fun supportsMultiInstance(mime: String): Boolean {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return false
-
-		for (info in mediaCodecList.codecInfos) {
-			if (info.isEncoder) continue
-
-			try {
-				val types = info.getSupportedTypes()
-				if (!types.contains(mime)) continue
-
-				val capabilities = info.getCapabilitiesForType(mime)
-				if (capabilities.maxSupportedInstances > 1) return true
-			} catch (_: IllegalArgumentException) {
-				// Decoder not supported - ignore
 			}
 		}
 
